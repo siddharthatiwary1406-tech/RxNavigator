@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Layout';
+import AdminRoute from './components/common/AdminRoute';
 
 import Home from './pages/Home';
 import Search from './pages/Search';
@@ -8,6 +9,10 @@ import History from './pages/History';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import DrugDetail from './pages/DrugDetail';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminDrugs from './pages/admin/AdminDrugs';
+import AdminSeed from './pages/admin/AdminSeed';
 
 /** Redirects to /login if the user is not authenticated. */
 function ProtectedRoute({ children }) {
@@ -93,6 +98,20 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Admin section */}
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminLayout />
+          </AdminRoute>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="drugs" element={<AdminDrugs />} />
+        <Route path="seed" element={<AdminSeed />} />
+      </Route>
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

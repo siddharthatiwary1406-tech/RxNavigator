@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Pill, History, LogOut, User, Menu, X } from 'lucide-react';
+import { Pill, History, LogOut, User, Menu, X, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -33,6 +33,11 @@ export default function Navbar() {
                 <Link to="/history" className="hover:text-accent-400 transition-colors text-sm font-medium flex items-center gap-1">
                   <History className="w-4 h-4" /> History
                 </Link>
+                {user.role === 'admin' && (
+                  <Link to="/admin" className="hover:text-accent-400 transition-colors text-sm font-medium flex items-center gap-1">
+                    <Shield className="w-4 h-4" /> Admin
+                  </Link>
+                )}
                 <div className="flex items-center gap-2 ml-4 pl-4 border-l border-primary-500">
                   <User className="w-4 h-4 text-accent-400" />
                   <span className="text-sm">{user.firstName} {user.lastName}</span>
@@ -65,6 +70,9 @@ export default function Navbar() {
             <>
               <Link to="/search" className="block py-2 text-sm" onClick={() => setMenuOpen(false)}>Search</Link>
               <Link to="/history" className="block py-2 text-sm" onClick={() => setMenuOpen(false)}>History</Link>
+              {user.role === 'admin' && (
+                <Link to="/admin" className="block py-2 text-sm text-accent-400" onClick={() => setMenuOpen(false)}>Admin Panel</Link>
+              )}
               <button onClick={handleLogout} className="block py-2 text-sm text-red-300 w-full text-left">Logout</button>
             </>
           ) : (
