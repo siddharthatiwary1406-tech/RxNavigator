@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SearchIcon, Sparkles } from 'lucide-react';
+import { SearchIcon, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 import DrugSearchBar from '../components/search/DrugSearchBar';
 import ChatInterface from '../components/chat/ChatInterface';
 import AnswerCard from '../components/results/AnswerCard';
@@ -50,12 +50,34 @@ export default function Search() {
           />
         </div>
 
-        {/* Result or placeholder */}
-        {result ? (
+        {/* Loading state */}
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-12 h-12 border-4 border-accent-500 border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-sm font-medium text-slate-600">Researching your query…</p>
+            <p className="text-xs text-slate-400 mt-1">The AI agent is checking databases and sources</p>
+            {toolCalls.length > 0 && (
+              <div className="mt-4 flex flex-col gap-1.5">
+                {toolCalls.map((tc, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs text-slate-500">
+                    <div className={`w-2 h-2 rounded-full ${tc.status === 'done' ? 'bg-green-400' : 'bg-accent-400 animate-pulse'}`} />
+                    {tc.message || tc.tool}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Result */}
+        {!isLoading && result && (
           <div className="max-w-3xl">
             <AnswerCard result={result} queryId={result.queryId} />
           </div>
-        ) : !isLoading && !error ? (
+        )}
+
+        {/* Placeholder — only when idle with no result */}
+        {!isLoading && !result && !error && (
           <div className="flex-1 flex flex-col items-center justify-center text-center py-16 max-w-md mx-auto">
             <div className="w-16 h-16 rounded-2xl bg-primary-600/10 flex items-center justify-center mb-4">
               <Sparkles className="w-8 h-8 text-primary-600" />
@@ -76,8 +98,8 @@ export default function Search() {
               {[
                 'Ocrevus REMS requirements',
                 'Prescribing Enbrel',
-                'Sprycel prior auth',
                 'Humira specialty pharmacy',
+                'Keytruda prior auth',
               ].map(suggestion => (
                 <button
                   key={suggestion}
@@ -89,20 +111,20 @@ export default function Search() {
               ))}
             </div>
           </div>
-        ) : null}
+        )}
 
-        {/* Error state in right panel */}
-        {error && !isLoading && (
+        {/* Error state */}
+        {!isLoading && error && (
           <div className="max-w-md bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700 flex items-start gap-3">
-            <Search className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold mb-1">Search failed</p>
               <p>{error}</p>
               <button
                 onClick={reset}
-                className="mt-3 text-xs underline text-red-600 hover:text-red-800"
+                className="mt-3 flex items-center gap-1.5 text-xs text-red-600 hover:text-red-800"
               >
-                Try again
+                <RefreshCw className="w-3 h-3" /> Try again
               </button>
             </div>
           </div>
