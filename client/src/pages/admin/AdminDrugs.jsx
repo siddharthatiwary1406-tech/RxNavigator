@@ -1,24 +1,36 @@
 import { useEffect, useState, useCallback } from 'react';
 import { adminDrugsApi } from '../../services/adminApi';
 import DrugForm from './DrugForm';
-import { Plus, Pencil, Trash2, X, Search, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import {
+  Plus, Pencil, Trash2, X, Search, ChevronLeft, ChevronRight,
+  AlertTriangle, CheckCircle, XCircle, MessageSquare, Send
+} from 'lucide-react';
 
 const STATUS_TABS = [
-  { label: 'All', value: '' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'Approved', value: 'approved' },
-  { label: 'Rejected', value: 'rejected' },
+  { label: 'All',           value: '' },
+  { label: 'Pending',       value: 'pending' },
+  { label: 'Approved',      value: 'approved' },
+  { label: 'Rejected',      value: 'rejected' },
+  { label: 'Info Requested',value: 'info_requested' },
 ];
 
+const STATUS_STYLES = {
+  approved:       'bg-green-100 text-green-700',
+  pending:        'bg-amber-100 text-amber-700',
+  rejected:       'bg-red-100 text-red-700',
+  info_requested: 'bg-blue-100 text-blue-700',
+};
+const STATUS_LABELS = {
+  approved: 'Approved',
+  pending: 'Pending',
+  rejected: 'Rejected',
+  info_requested: 'Info Requested',
+};
+
 function StatusBadge({ status }) {
-  const styles = {
-    approved: 'bg-green-100 text-green-700',
-    pending:  'bg-amber-100 text-amber-700',
-    rejected: 'bg-red-100 text-red-700',
-  };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-slate-100 text-slate-600'}`}>
-      {status || '—'}
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[status] || 'bg-slate-100 text-slate-600'}`}>
+      {STATUS_LABELS[status] || status || '—'}
     </span>
   );
 }
@@ -39,6 +51,74 @@ function SlideOver({ open, title, onClose, children }) {
   );
 }
 
+function ReviewThread({ drug, onSend, sending }) {
+  const [message, setMessage] = useState('');
+
+  const handleSend = async () => {
+    if (!message.trim()) return;
+    await onSend(message);
+    setMessage('');
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Drug info header */}
+      <div className="px-6 py-3 bg-slate-50 border-b border-slate-100">
+        <p className="text-sm font-semibold text-slate-800">{drug.brandName} <span className="font-normal text-slate-500">/ {drug.genericName}</span></p>
+        {drug.manufacturer && <p className="text-xs text-slate-400">{drug.manufacturer}</p>}
+        <div className="mt-1"><StatusBadge status={drug.status} /></div>
+      </div>
+
+      {/* Thread */}
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        {(!drug.reviewMessages || drug.reviewMessages.length === 0) ? (
+          <p className="text-sm text-slate-400 text-center py-8">No messages yet. Send a question below.</p>
+        ) : (
+          drug.reviewMessages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.from === 'admin' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm ${
+                msg.from === 'admin'
+                  ? 'bg-primary-600 text-white rounded-br-sm'
+                  : 'bg-slate-100 text-slate-800 rounded-bl-sm'
+              }`}>
+                <p className="leading-relaxed">{msg.message}</p>
+                <p className={`text-[10px] mt-1 ${msg.from === 'admin' ? 'text-primary-200' : 'text-slate-400'}`}>
+                  {msg.from === 'admin' ? 'Admin' : 'Pharma'} · {new Date(msg.createdAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Compose */}
+      <div className="px-6 py-4 border-t border-slate-200">
+        <p className="text-xs text-slate-400 mb-2">
+          Send a question — pharma company will be notified and can respond in their portal. Status will change to <strong>Info Requested</strong>.
+        </p>
+        <div className="flex gap-2">
+          <textarea
+            rows={3}
+            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none"
+            placeholder="e.g. Please provide clinical trial references for the listed indications..."
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+          />
+          <button
+            onClick={handleSend}
+            disabled={sending || !message.trim()}
+            className="self-end p-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-40 transition-colors"
+          >
+            {sending
+              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <Send className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDrugs() {
   const [drugs, setDrugs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -48,7 +128,8 @@ export default function AdminDrugs() {
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [modal, setModal] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [modal, setModal] = useState(null); // 'create' | 'edit' | 'review'
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [error, setError] = useState(null);
@@ -69,6 +150,7 @@ export default function AdminDrugs() {
 
   const openCreate = () => { setSelected(null); setModal('create'); };
   const openEdit = (drug) => { setSelected(drug); setModal('edit'); };
+  const openReview = (drug) => { setSelected(drug); setModal('review'); };
   const closeModal = () => { setModal(null); setSelected(null); };
 
   const handleSave = async (data) => {
@@ -100,20 +182,29 @@ export default function AdminDrugs() {
   };
 
   const handleApprove = async (id) => {
-    try {
-      await adminDrugsApi.approve(id);
-      fetchDrugs();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Approve failed');
-    }
+    try { await adminDrugsApi.approve(id); fetchDrugs(); }
+    catch (err) { setError(err.response?.data?.error || 'Approve failed'); }
   };
 
   const handleReject = async (id) => {
+    try { await adminDrugsApi.reject(id); fetchDrugs(); }
+    catch (err) { setError(err.response?.data?.error || 'Reject failed'); }
+  };
+
+  const handleRequestInfo = async (message) => {
+    if (!selected) return;
+    setSending(true);
     try {
-      await adminDrugsApi.reject(id);
+      await adminDrugsApi.requestInfo(selected._id, message);
+      // Refresh the selected drug data
+      const res = await adminDrugsApi.list({ q: selected.brandName, limit: 1 });
+      const updated = res.data.data.find(d => d._id === selected._id);
+      if (updated) setSelected(updated);
       fetchDrugs();
     } catch (err) {
-      setError(err.response?.data?.error || 'Reject failed');
+      setError(err.response?.data?.error || 'Failed to send message');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -138,7 +229,7 @@ export default function AdminDrugs() {
       )}
 
       {/* Status filter tabs */}
-      <div className="flex gap-1 mb-4">
+      <div className="flex gap-1 mb-4 flex-wrap">
         {STATUS_TABS.map(tab => (
           <button
             key={tab.value}
@@ -186,7 +277,10 @@ export default function AdminDrugs() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {drugs.map(drug => (
-                <tr key={drug._id} className={`hover:bg-slate-50 transition-colors ${drug.status === 'pending' ? 'bg-amber-50/40' : ''}`}>
+                <tr key={drug._id} className={`hover:bg-slate-50 transition-colors ${
+                  drug.status === 'pending' ? 'bg-amber-50/40' :
+                  drug.status === 'info_requested' ? 'bg-blue-50/40' : ''
+                }`}>
                   <td className="px-4 py-3 font-medium text-slate-800">
                     {drug.brandName}
                     {drug.addedVia === 'pharma' && (
@@ -206,22 +300,33 @@ export default function AdminDrugs() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      {/* Approve/Reject for pending drugs */}
-                      {drug.status === 'pending' && !confirmDelete && (
+                      {/* Approve/Reject/Ask for pending or info_requested */}
+                      {(drug.status === 'pending' || drug.status === 'info_requested') && !confirmDelete && (
                         <>
+                          {drug.status === 'pending' && (
+                            <button
+                              onClick={() => handleApprove(drug._id)}
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                              title="Approve"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                          {drug.status === 'pending' && (
+                            <button
+                              onClick={() => handleReject(drug._id)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                              title="Reject"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleApprove(drug._id)}
-                            className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title="Approve"
+                            onClick={() => openReview(drug)}
+                            className="p-1.5 text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                            title="Request more info / view thread"
                           >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleReject(drug._id)}
-                            className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
-                            title="Reject"
-                          >
-                            <XCircle className="w-4 h-4" />
+                            <MessageSquare className="w-4 h-4" />
                           </button>
                         </>
                       )}
@@ -270,8 +375,24 @@ export default function AdminDrugs() {
         </div>
       )}
 
-      <SlideOver open={!!modal} title={modal === 'edit' ? `Edit: ${selected?.brandName}` : 'Add New Drug'} onClose={closeModal}>
+      {/* Drug form slide-over */}
+      <SlideOver
+        open={modal === 'create' || modal === 'edit'}
+        title={modal === 'edit' ? `Edit: ${selected?.brandName}` : 'Add New Drug'}
+        onClose={closeModal}
+      >
         <DrugForm initialData={selected} onSubmit={handleSave} onCancel={closeModal} loading={saving} />
+      </SlideOver>
+
+      {/* Review / Request Info slide-over */}
+      <SlideOver
+        open={modal === 'review'}
+        title={`Review Thread — ${selected?.brandName || ''}`}
+        onClose={closeModal}
+      >
+        {selected && (
+          <ReviewThread drug={selected} onSend={handleRequestInfo} sending={sending} />
+        )}
       </SlideOver>
     </div>
   );

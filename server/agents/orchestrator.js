@@ -105,6 +105,7 @@ async function callClaudeWithRetry(params, maxAttempts = 3) {
 async function runAgent(query, userId, res) {
   const startTime = Date.now();
   const toolsUsed = [];
+  let drugMeta = null;
   const messages = [{ role: 'user', content: query }];
 
   // SSE headers must be set before calling this function
@@ -174,11 +175,12 @@ async function runAgent(query, userId, res) {
       sendSSE(res, {
         type: 'complete',
         data: structured,
+        drugMeta,
         toolsUsed,
         responseTimeMs
       });
 
-      return { structured, toolsUsed, responseTimeMs };
+      return { structured, drugMeta, toolsUsed, responseTimeMs };
     }
 
     // Handle tool_use blocks
@@ -202,6 +204,16 @@ async function runAgent(query, userId, res) {
           result = await executeTool(name, input);
         } catch (err) {
           result = { error: `Tool execution failed: ${err.message}` };
+        }
+
+        // Capture drug metadata when found in DB
+        if (name === 'search_drug_database' && result.found && result.brandName) {
+          drugMeta = {
+            brandName: result.brandName,
+            genericName: result.genericName,
+            manufacturer: result.manufacturer,
+            status: result.status,
+          };
         }
 
         sendSSE(res, {

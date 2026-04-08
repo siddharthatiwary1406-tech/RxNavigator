@@ -4,7 +4,7 @@ const { protect } = require('../middleware/auth');
 const adminOnly = require('../middleware/adminOnly');
 const {
   listDrugs, createDrug, updateDrug, deleteDrug, webSeedDrug, getAnalytics,
-  approveDrug, rejectDrug, getSearchLogs
+  approveDrug, rejectDrug, getSearchLogs, requestInfo
 } = require('../controllers/adminController');
 
 // All admin routes require auth + admin role
@@ -23,6 +23,7 @@ router.route('/drugs')
 // Approve/reject must be before /:id PUT to avoid collision
 router.put('/drugs/:id/approve', approveDrug);
 router.put('/drugs/:id/reject', rejectDrug);
+router.put('/drugs/:id/request-info', requestInfo);
 
 router.route('/drugs/:id')
   .put(updateDrug)

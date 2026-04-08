@@ -19,12 +19,33 @@ const TABS = [
   { id: 'forms',     label: 'Forms & Sources', icon: FileText },
 ];
 
+function DrugStatusBadge({ status }) {
+  const map = {
+    approved:       'bg-green-100 text-green-700 border-green-200',
+    pending:        'bg-amber-100 text-amber-700 border-amber-200',
+    rejected:       'bg-red-100 text-red-700 border-red-200',
+    info_requested: 'bg-blue-100 text-blue-700 border-blue-200',
+  };
+  const labels = {
+    approved: 'Verified & Approved',
+    pending: 'Pending Review',
+    rejected: 'Rejected',
+    info_requested: 'More Info Requested',
+  };
+  const cls = map[status] || 'bg-slate-100 text-slate-600 border-slate-200';
+  return (
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${cls}`}>
+      {labels[status] || status}
+    </span>
+  );
+}
+
 export default function AnswerCard({ result, queryId }) {
   const [activeTab, setActiveTab] = useState('steps');
 
   if (!result) return null;
 
-  const { data = {}, toolsUsed = [], responseTimeMs } = result;
+  const { data = {}, drugMeta, toolsUsed = [], responseTimeMs } = result;
   const {
     prescribingSteps,
     remsRequired,
@@ -40,6 +61,20 @@ export default function AnswerCard({ result, queryId }) {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* Drug identity header — only shown when data came from DB */}
+      {drugMeta && (
+        <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-4 bg-slate-50/60">
+          <div>
+            <h2 className="text-base font-bold text-slate-800 leading-tight">{drugMeta.brandName}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {drugMeta.genericName}
+              {drugMeta.manufacturer && <span className="text-slate-400"> · {drugMeta.manufacturer}</span>}
+            </p>
+          </div>
+          <DrugStatusBadge status={drugMeta.status} />
+        </div>
+      )}
+
       {/* Important warnings */}
       {importantWarnings && importantWarnings.length > 0 && (
         <div className="bg-red-50 border-b border-red-200 px-5 py-3 space-y-2">

@@ -79,7 +79,7 @@ export function useAgent() {
         });
         break;
       case 'complete':
-        setResult({ data: event.data, toolsUsed: event.toolsUsed, responseTimeMs: event.responseTimeMs });
+        setResult({ data: event.data, drugMeta: event.drugMeta || null, toolsUsed: event.toolsUsed, responseTimeMs: event.responseTimeMs });
         break;
       case 'error':
         setError(event.message);

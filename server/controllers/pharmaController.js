@@ -24,6 +24,27 @@ exports.getMySubmissions = async (req, res, next) => {
   }
 };
 
+exports.respondToReview = async (req, res, next) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ success: false, error: 'Message is required' });
+
+    const drug = await Drug.findOne({ _id: req.params.id, submittedBy: req.user._id });
+    if (!drug) return res.status(404).json({ success: false, error: 'Submission not found' });
+    if (drug.status !== 'info_requested') {
+      return res.status(400).json({ success: false, error: 'No info request is pending for this submission' });
+    }
+
+    drug.reviewMessages.push({ from: 'pharma', message: message.trim(), createdAt: new Date() });
+    drug.status = 'pending'; // back to pending for admin re-review
+    await drug.save();
+
+    res.json({ success: true, data: drug });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.updateSubmission = async (req, res, next) => {
   try {
     const drug = await Drug.findOne({ _id: req.params.id, submittedBy: req.user._id });

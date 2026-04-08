@@ -7,7 +7,8 @@ export const adminDrugsApi = {
   remove: (id) => api.delete(`/admin/drugs/${id}`),
   seed: (drugName) => api.post('/admin/drugs/seed', { drugName }),
   approve: (id) => api.put(`/admin/drugs/${id}/approve`),
-  reject: (id) => api.put(`/admin/drugs/${id}/reject`)
+  reject: (id) => api.put(`/admin/drugs/${id}/reject`),
+  requestInfo: (id, message) => api.put(`/admin/drugs/${id}/request-info`, { message })
 };
 
 export const adminAnalyticsApi = {

@@ -292,3 +292,30 @@ exports.rejectDrug = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.requestInfo = async (req, res, next) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ success: false, error: 'Message is required' });
+
+    const drug = await Drug.findById(req.params.id);
+    if (!drug) return res.status(404).json({ success: false, error: 'Drug not found' });
+
+    drug.status = 'info_requested';
+    drug.reviewMessages.push({ from: 'admin', message: message.trim(), createdAt: new Date() });
+    await drug.save();
+
+    // Notify the pharma user
+    if (drug.submittedBy) {
+      await Notification.create({
+        userId: drug.submittedBy,
+        drugName: drug.brandName,
+        message: `Admin requests more information for ${drug.brandName}: "${message.trim().substring(0, 120)}"`
+      });
+    }
+
+    res.json({ success: true, data: drug });
+  } catch (err) {
+    next(err);
+  }
+};
