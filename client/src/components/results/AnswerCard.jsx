@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   ListOrdered, Building2, ShieldAlert, ClipboardList, FileText,
-  AlertCircle, Download, ExternalLink, Clock, Wrench, TriangleAlert
+  AlertCircle, AlertTriangle, Download, ExternalLink, Clock, Wrench
 } from 'lucide-react';
 import PrescribingSteps from './PrescribingSteps';
 import PharmacyList from './PharmacyList';
@@ -17,7 +17,7 @@ const TABS = [
   { id: 'rems',      label: 'REMS',            icon: ShieldAlert },
   { id: 'priorauth', label: 'Prior Auth',      icon: ClipboardList },
   { id: 'forms',     label: 'Forms & Sources', icon: FileText },
-  { id: 'warnings',  label: 'Warnings',        icon: TriangleAlert },
+  { id: 'warnings',  label: 'Warnings',        icon: AlertTriangle },
 ];
 
 function DrugStatusBadge({ status }) {
@@ -171,7 +171,7 @@ export default function AnswerCard({ result, queryId }) {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <TriangleAlert className="w-8 h-8 text-slate-300 mb-2" />
+                <AlertTriangle className="w-8 h-8 text-slate-300 mb-2" />
                 <p className="text-sm text-slate-400">No warnings reported for this drug.</p>
               </div>
             )}
