@@ -17,6 +17,7 @@ const QuerySchema = new mongoose.Schema({
     importantWarnings: [String]
   },
   toolsUsed: [String],
+  resultSource: { type: String, enum: ['database', 'web', 'not_found'], default: 'web' },
   responseTimeMs: Number,
   createdAt: { type: Date, default: Date.now }
 });

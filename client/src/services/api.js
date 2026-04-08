@@ -43,4 +43,10 @@ export const feedbackApi = {
   submit: (data) => api.post('/agent/feedback', data)
 };
 
+export const pharmaApi = {
+  submit: (data) => api.post('/pharma/drugs', data),
+  getSubmissions: () => api.get('/pharma/drugs'),
+  update: (id, data) => api.put(`/pharma/drugs/${id}`, data),
+};
+
 export default api;

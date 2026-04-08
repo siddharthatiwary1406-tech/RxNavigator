@@ -13,6 +13,9 @@ import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminDrugs from './pages/admin/AdminDrugs';
 import AdminSeed from './pages/admin/AdminSeed';
+import AdminSearchLogs from './pages/admin/AdminSearchLogs';
+import PharmaRoute from './components/common/PharmaRoute';
+import PharmaPortal from './pages/PharmaPortal';
 
 /** Redirects to /login if the user is not authenticated. */
 function ProtectedRoute({ children }) {
@@ -111,7 +114,20 @@ function AppRoutes() {
         <Route index element={<AdminDashboard />} />
         <Route path="drugs" element={<AdminDrugs />} />
         <Route path="seed" element={<AdminSeed />} />
+        <Route path="search-logs" element={<AdminSearchLogs />} />
       </Route>
+
+      {/* Pharma portal */}
+      <Route
+        path="/pharma"
+        element={
+          <PharmaRoute>
+            <Layout>
+              <PharmaPortal />
+            </Layout>
+          </PharmaRoute>
+        }
+      />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,7 +1,27 @@
 import { useEffect, useState, useCallback } from 'react';
 import { adminDrugsApi } from '../../services/adminApi';
 import DrugForm from './DrugForm';
-import { Plus, Pencil, Trash2, X, Search, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Search, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+
+const STATUS_TABS = [
+  { label: 'All', value: '' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'Approved', value: 'approved' },
+  { label: 'Rejected', value: 'rejected' },
+];
+
+function StatusBadge({ status }) {
+  const styles = {
+    approved: 'bg-green-100 text-green-700',
+    pending:  'bg-amber-100 text-amber-700',
+    rejected: 'bg-red-100 text-red-700',
+  };
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-slate-100 text-slate-600'}`}>
+      {status || '—'}
+    </span>
+  );
+}
 
 function SlideOver({ open, title, onClose, children }) {
   if (!open) return null;
@@ -25,16 +45,17 @@ export default function AdminDrugs() {
   const [pages, setPages] = useState(1);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [modal, setModal] = useState(null); // null | 'create' | 'edit'
+  const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [error, setError] = useState(null);
 
   const fetchDrugs = useCallback(() => {
     setLoading(true);
-    adminDrugsApi.list({ q: search || undefined, page, limit: 15 })
+    adminDrugsApi.list({ q: search || undefined, status: statusFilter || undefined, page, limit: 15 })
       .then(res => {
         setDrugs(res.data.data);
         setTotal(res.data.total);
@@ -42,7 +63,7 @@ export default function AdminDrugs() {
       })
       .catch(err => setError(err.response?.data?.error || 'Failed to load drugs'))
       .finally(() => setLoading(false));
-  }, [search, page]);
+  }, [search, statusFilter, page]);
 
   useEffect(() => { fetchDrugs(); }, [fetchDrugs]);
 
@@ -78,6 +99,24 @@ export default function AdminDrugs() {
     }
   };
 
+  const handleApprove = async (id) => {
+    try {
+      await adminDrugsApi.approve(id);
+      fetchDrugs();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Approve failed');
+    }
+  };
+
+  const handleReject = async (id) => {
+    try {
+      await adminDrugsApi.reject(id);
+      fetchDrugs();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Reject failed');
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -97,6 +136,23 @@ export default function AdminDrugs() {
           <button onClick={() => setError(null)} className="ml-auto"><X className="w-4 h-4" /></button>
         </div>
       )}
+
+      {/* Status filter tabs */}
+      <div className="flex gap-1 mb-4">
+        {STATUS_TABS.map(tab => (
+          <button
+            key={tab.value}
+            onClick={() => { setStatusFilter(tab.value); setPage(1); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              statusFilter === tab.value
+                ? 'bg-primary-600 text-white'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {/* Search */}
       <div className="relative mb-4">
@@ -122,6 +178,7 @@ export default function AdminDrugs() {
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Brand Name</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Generic</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Area</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-600">Status</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">REMS</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Verified</th>
                 <th className="px-4 py-3 text-right font-semibold text-slate-600">Actions</th>
@@ -129,10 +186,16 @@ export default function AdminDrugs() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {drugs.map(drug => (
-                <tr key={drug._id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-slate-800">{drug.brandName}</td>
+                <tr key={drug._id} className={`hover:bg-slate-50 transition-colors ${drug.status === 'pending' ? 'bg-amber-50/40' : ''}`}>
+                  <td className="px-4 py-3 font-medium text-slate-800">
+                    {drug.brandName}
+                    {drug.addedVia === 'pharma' && (
+                      <span className="ml-1.5 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-semibold">Pharma</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{drug.genericName}</td>
-                  <td className="px-4 py-3 text-slate-500 truncate max-w-[140px]">{drug.therapeuticArea || '—'}</td>
+                  <td className="px-4 py-3 text-slate-500 truncate max-w-[120px]">{drug.therapeuticArea || '—'}</td>
+                  <td className="px-4 py-3"><StatusBadge status={drug.status} /></td>
                   <td className="px-4 py-3">
                     {drug.hasREMS
                       ? <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">REMS</span>
@@ -142,7 +205,26 @@ export default function AdminDrugs() {
                     {drug.lastVerified ? new Date(drug.lastVerified).toLocaleDateString() : '—'}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Approve/Reject for pending drugs */}
+                      {drug.status === 'pending' && !confirmDelete && (
+                        <>
+                          <button
+                            onClick={() => handleApprove(drug._id)}
+                            className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title="Approve"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleReject(drug._id)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                            title="Reject"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                       {confirmDelete === drug._id ? (
                         <>
                           <span className="text-xs text-red-600 mr-1">Delete?</span>
@@ -165,7 +247,7 @@ export default function AdminDrugs() {
               ))}
               {!drugs.length && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-slate-400 text-sm">No drugs found</td>
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400 text-sm">No drugs found</td>
                 </tr>
               )}
             </tbody>
@@ -178,32 +260,18 @@ export default function AdminDrugs() {
         <div className="flex items-center justify-between mt-4">
           <span className="text-sm text-slate-500">Page {page} of {pages}</span>
           <div className="flex gap-2">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage(p => p - 1)}
-              className="p-2 border border-slate-300 rounded-lg disabled:opacity-40 hover:bg-slate-50"
-            >
+            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="p-2 border border-slate-300 rounded-lg disabled:opacity-40 hover:bg-slate-50">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button
-              disabled={page >= pages}
-              onClick={() => setPage(p => p + 1)}
-              className="p-2 border border-slate-300 rounded-lg disabled:opacity-40 hover:bg-slate-50"
-            >
+            <button disabled={page >= pages} onClick={() => setPage(p => p + 1)} className="p-2 border border-slate-300 rounded-lg disabled:opacity-40 hover:bg-slate-50">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
 
-      {/* Slide-over for create/edit */}
       <SlideOver open={!!modal} title={modal === 'edit' ? `Edit: ${selected?.brandName}` : 'Add New Drug'} onClose={closeModal}>
-        <DrugForm
-          initialData={selected}
-          onSubmit={handleSave}
-          onCancel={closeModal}
-          loading={saving}
-        />
+        <DrugForm initialData={selected} onSubmit={handleSave} onCancel={closeModal} loading={saving} />
       </SlideOver>
     </div>
   );

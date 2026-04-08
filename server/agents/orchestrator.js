@@ -11,7 +11,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const TOOLS = [
   {
     name: 'search_drug_database',
-    description: 'Search internal drug database for prescribing steps, REMS info, specialty pharmacies, and required forms for a specific drug. Always call this first.',
+    description: 'Search internal drug database for prescribing steps, REMS info, specialty pharmacies, and required forms for a specific drug. Always call this first. IMPORTANT: If the result contains shouldWebSearch: false, do NOT call web_search — return the final answer using the database data only.',
     input_schema: {
       type: 'object',
       properties: {
@@ -89,6 +89,19 @@ function sendSSE(res, event) {
   res.write(`data: ${JSON.stringify(event)}\n\n`);
 }
 
+async function callClaudeWithRetry(params, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await client.messages.create(params);
+    } catch (err) {
+      const isOverload = err.status === 529 || (err.message && err.message.includes('overloaded'));
+      if (!isOverload || attempt === maxAttempts) throw err;
+      const delayMs = Math.pow(2, attempt) * 1000; // 2s, 4s
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+}
+
 async function runAgent(query, userId, res) {
   const startTime = Date.now();
   const toolsUsed = [];
@@ -105,7 +118,7 @@ async function runAgent(query, userId, res) {
 
     let response;
     try {
-      response = await client.messages.create({
+      response = await callClaudeWithRetry({
         model: 'claude-opus-4-6',
         max_tokens: 4096,
         system: getSystemPrompt(),

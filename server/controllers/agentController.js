@@ -26,6 +26,15 @@ exports.queryAgent = async (req, res, next) => {
     if (result) {
       const drugMentioned = extractDrugName(query);
 
+      // Determine where the result came from
+      let resultSource = 'web';
+      if (!result.toolsUsed.includes('web_search') && result.toolsUsed.includes('search_drug_database')) {
+        resultSource = 'database';
+      }
+      if ((result.structured.confidenceScore || 0) < 0.5 && !result.structured.prescribingSteps?.length) {
+        resultSource = 'not_found';
+      }
+
       // Save query to DB asynchronously
       Query.create({
         userId: req.user._id,
@@ -33,6 +42,7 @@ exports.queryAgent = async (req, res, next) => {
         drugMentioned,
         agentResponse: result.structured,
         toolsUsed: result.toolsUsed,
+        resultSource,
         responseTimeMs: result.responseTimeMs
       }).catch(console.error);
 
@@ -97,7 +107,9 @@ async function enrichDrugRecord(drugName, structured) {
     { brandName: { $regex: new RegExp(drugName, 'i') } },
     {
       $set: update,
+      $setOnInsert: { status: 'pending', addedVia: 'agent' },
       ...(sources.length ? { $addToSet: { dataSource: { $each: sources } } } : {})
-    }
+    },
+    { upsert: true }
   );
 }

@@ -2,6 +2,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const Drug = require('../models/Drug');
 const Query = require('../models/Query');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const { search: tavilySearch } = require('../services/tavilyService');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -10,10 +11,11 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 exports.listDrugs = async (req, res, next) => {
   try {
-    const { q, area, page = 1, limit = 20 } = req.query;
+    const { q, area, status, page = 1, limit = 20 } = req.query;
     const filter = {};
     if (q) filter.$text = { $search: q };
     if (area) filter.therapeuticArea = { $regex: area, $options: 'i' };
+    if (status) filter.status = status;
 
     const skip = (Number(page) - 1) * Number(limit);
     const [drugs, total] = await Promise.all([
@@ -29,7 +31,7 @@ exports.listDrugs = async (req, res, next) => {
 
 exports.createDrug = async (req, res, next) => {
   try {
-    const drug = await Drug.create({ ...req.body, lastVerified: new Date() });
+    const drug = await Drug.create({ ...req.body, addedVia: req.body.addedVia || 'manual', lastVerified: new Date() });
     res.status(201).json({ success: true, data: drug });
   } catch (err) {
     next(err);
@@ -126,6 +128,7 @@ If a field has no data, use null for strings, false for booleans, and [] for arr
 
     const drugData = JSON.parse(text.slice(start, end + 1));
     drugData.lastVerified = new Date();
+    drugData.addedVia = 'seed';
     drugData.dataSource = [
       ...(drugData.dataSource || []),
       ...searchResult.results.map(r => r.url)
@@ -213,6 +216,78 @@ exports.getAnalytics = async (req, res, next) => {
         toolUsage
       }
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── Search Logs ─────────────────────────────────────────────────────────────
+
+exports.getSearchLogs = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 25, source } = req.query;
+    const filter = {};
+    if (source) filter.resultSource = source;
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const [logs, total] = await Promise.all([
+      Query.find(filter)
+        .populate('userId', 'firstName lastName email specialty')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .select('userId drugMentioned resultSource agentResponse.confidenceScore toolsUsed createdAt'),
+      Query.countDocuments(filter)
+    ]);
+
+    res.json({ success: true, data: logs, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── Approve / Reject ─────────────────────────────────────────────────────────
+
+exports.approveDrug = async (req, res, next) => {
+  try {
+    const drug = await Drug.findByIdAndUpdate(
+      req.params.id,
+      { status: 'approved' },
+      { new: true }
+    );
+    if (!drug) return res.status(404).json({ success: false, error: 'Drug not found' });
+
+    // Notify doctors who previously searched for this drug and got not_found
+    const drugRegex = new RegExp(drug.brandName, 'i');
+    const notFoundUserIds = await Query.find({
+      drugMentioned: drugRegex,
+      resultSource: 'not_found'
+    }).distinct('userId');
+
+    if (notFoundUserIds.length > 0) {
+      const notifications = notFoundUserIds.map(userId => ({
+        userId,
+        drugName: drug.brandName,
+        message: `${drug.brandName} (${drug.genericName}) is now available in the SpecialtyRx database with full prescribing information.`
+      }));
+      await Notification.insertMany(notifications);
+    }
+
+    res.json({ success: true, data: drug });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.rejectDrug = async (req, res, next) => {
+  try {
+    const drug = await Drug.findByIdAndUpdate(
+      req.params.id,
+      { status: 'rejected' },
+      { new: true }
+    );
+    if (!drug) return res.status(404).json({ success: false, error: 'Drug not found' });
+    res.json({ success: true, data: drug });
   } catch (err) {
     next(err);
   }

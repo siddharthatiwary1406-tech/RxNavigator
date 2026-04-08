@@ -1,12 +1,13 @@
 import { Outlet, NavLink, Link } from 'react-router-dom';
-import { LayoutDashboard, Pill, Globe, LogOut, Pill as Logo } from 'lucide-react';
+import { LayoutDashboard, Pill, Globe, LogOut, Pill as Logo, BarChart2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/drugs', label: 'Drug Database', icon: Pill },
-  { to: '/admin/seed', label: 'Seed from Web', icon: Globe }
+  { to: '/admin/seed', label: 'Seed from Web', icon: Globe },
+  { to: '/admin/search-logs', label: 'Search Logs', icon: BarChart2 }
 ];
 
 export default function AdminLayout() {

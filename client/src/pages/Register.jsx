@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, UserPlus, Eye, EyeOff, Stethoscope, Building2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const SPECIALTIES = [
@@ -26,6 +26,7 @@ export default function Register() {
   const navigate = useNavigate();
   const { register } = useAuth();
 
+  const [role, setRole] = useState('user'); // 'user' | 'pharma'
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -33,32 +34,51 @@ export default function Register() {
     password: '',
     specialty: '',
     state: '',
+    companyName: '',
+    contactName: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isPharma = role === 'pharma';
 
   const handleChange = (e) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
     setError('');
   };
 
+  const handleRoleChange = (newRole) => {
+    setRole(newRole);
+    setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { firstName, lastName, email, password, specialty, state } = form;
-    if (!firstName || !lastName || !email || !password || !specialty || !state) {
-      setError('Please fill in all fields.');
+    const { firstName, lastName, email, password } = form;
+
+    if (!firstName || !lastName || !email || !password) {
+      setError('Please fill in all required fields.');
       return;
     }
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
       return;
     }
+    if (!isPharma && (!form.specialty || !form.state)) {
+      setError('Please select your specialty and state.');
+      return;
+    }
+    if (isPharma && !form.companyName) {
+      setError('Please enter your company name.');
+      return;
+    }
+
     setIsSubmitting(true);
     setError('');
     try {
-      await register(form);
-      navigate('/search', { replace: true });
+      await register({ ...form, role });
+      navigate(isPharma ? '/pharma' : '/search', { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Registration failed. Please try again.');
     } finally {
@@ -75,10 +95,34 @@ export default function Register() {
             <UserPlus className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-bold text-primary-600">Create Your Account</h1>
-          <p className="text-slate-500 text-sm mt-1">For licensed healthcare providers only</p>
+          <p className="text-slate-500 text-sm mt-1">Join SpecialtyRx Navigator</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+          {/* Role toggle */}
+          <div className="flex rounded-lg border border-slate-200 p-1 mb-6 gap-1">
+            <button
+              type="button"
+              onClick={() => handleRoleChange('user')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                !isPharma ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Stethoscope className="w-4 h-4" />
+              Healthcare Provider
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRoleChange('pharma')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                isPharma ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              Pharma Company
+            </button>
+          </div>
+
           {error && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 mb-5">
               <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
@@ -91,7 +135,7 @@ export default function Register() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  First Name
+                  First Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="firstName"
@@ -106,7 +150,7 @@ export default function Register() {
               </div>
               <div>
                 <label htmlFor="lastName" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Last Name
+                  Last Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="lastName"
@@ -124,7 +168,7 @@ export default function Register() {
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Email address
+                Email address <span className="text-red-500">*</span>
               </label>
               <input
                 id="email"
@@ -133,7 +177,7 @@ export default function Register() {
                 autoComplete="email"
                 value={form.email}
                 onChange={handleChange}
-                placeholder="you@hospital.org"
+                placeholder={isPharma ? 'contact@pharma.com' : 'you@hospital.org'}
                 className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:border-accent-500 focus:outline-none transition-colors"
               />
             </div>
@@ -165,43 +209,82 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Specialty + State */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="specialty" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Specialty
-                </label>
-                <select
-                  id="specialty"
-                  name="specialty"
-                  value={form.specialty}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:border-accent-500 focus:outline-none transition-colors bg-white"
-                >
-                  <option value="">Select specialty</option>
-                  {SPECIALTIES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+            {/* Healthcare Provider fields */}
+            {!isPharma && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="specialty" className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Specialty <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="specialty"
+                    name="specialty"
+                    value={form.specialty}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:border-accent-500 focus:outline-none transition-colors bg-white"
+                  >
+                    <option value="">Select specialty</option>
+                    {SPECIALTIES.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="state" className="block text-sm font-medium text-slate-700 mb-1.5">
+                    State <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="state"
+                    name="state"
+                    value={form.state}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:border-accent-500 focus:outline-none transition-colors bg-white"
+                  >
+                    <option value="">Select state</option>
+                    {US_STATES.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label htmlFor="state" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  State
-                </label>
-                <select
-                  id="state"
-                  name="state"
-                  value={form.state}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:border-accent-500 focus:outline-none transition-colors bg-white"
-                >
-                  <option value="">Select state</option>
-                  {US_STATES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+            )}
+
+            {/* Pharma fields */}
+            {isPharma && (
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="companyName" className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Company Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="companyName"
+                    name="companyName"
+                    type="text"
+                    value={form.companyName}
+                    onChange={handleChange}
+                    placeholder="Acme Pharmaceuticals Inc."
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:border-accent-500 focus:outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="contactName" className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Contact Name
+                  </label>
+                  <input
+                    id="contactName"
+                    name="contactName"
+                    type="text"
+                    value={form.contactName}
+                    onChange={handleChange}
+                    placeholder="Medical Affairs contact"
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:border-accent-500 focus:outline-none transition-colors"
+                  />
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+                  Drug submissions will be reviewed and approved by our clinical team before becoming visible to providers.
+                </div>
               </div>
-            </div>
+            )}
 
             <button
               type="submit"

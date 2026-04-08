@@ -37,7 +37,10 @@ const DrugSchema = new mongoose.Schema({
   fdaLabel: String,
   rxNormCode: String,
   lastVerified: { type: Date, default: Date.now },
-  dataSource: [String]
+  dataSource: [String],
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  addedVia: { type: String, enum: ['seed', 'agent', 'manual', 'pharma'], default: 'manual' },
+  submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
 });
 
 DrugSchema.index({ brandName: 'text', genericName: 'text', therapeuticArea: 'text' });

@@ -6,13 +6,26 @@ const signToken = (id) =>
 
 exports.register = async (req, res, next) => {
   try {
-    const { firstName, lastName, email, password, specialty, state, npi } = req.body;
-    const user = await User.create({ firstName, lastName, email, password, specialty, state, npi });
+    const { firstName, lastName, email, password, specialty, state, npi, role, companyName, contactName } = req.body;
+
+    // Only allow user or pharma roles via public registration
+    const safeRole = role === 'pharma' ? 'pharma' : 'user';
+    const userData = { firstName, lastName, email, password, role: safeRole };
+    if (safeRole === 'user') {
+      userData.specialty = specialty;
+      userData.state = state;
+      userData.npi = npi;
+    } else {
+      userData.companyName = companyName;
+      userData.contactName = contactName;
+    }
+
+    const user = await User.create(userData);
     const token = signToken(user._id);
     res.status(201).json({
       success: true,
       token,
-      user: { id: user._id, firstName, lastName, email, specialty, state, role: user.role }
+      user: { id: user._id, firstName, lastName, email, specialty: user.specialty, state: user.state, role: user.role, companyName: user.companyName }
     });
   } catch (err) {
     next(err);

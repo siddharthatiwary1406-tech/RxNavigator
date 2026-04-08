@@ -27,6 +27,8 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/agent', require('./routes/agent'));
 app.use('/api/drugs', require('./routes/drugs'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/pharma', require('./routes/pharma'));
 app.use('/api/pharmacies', require('./routes/pharmacies'));
 app.use('/api/history', require('./routes/history'));
 

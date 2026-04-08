@@ -15,7 +15,9 @@ const UserSchema = new mongoose.Schema({
   npi: { type: String },
   specialty: { type: String },
   state: { type: String },
-  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  role: { type: String, enum: ['user', 'admin', 'pharma'], default: 'user' },
+  companyName: { type: String },
+  contactName: { type: String },
   createdAt: { type: Date, default: Date.now },
   lastLogin: { type: Date }
 });

@@ -897,7 +897,7 @@ async function seed() {
     await Drug.deleteMany({});
     console.log('Cleared existing drugs');
 
-    const created = await Drug.insertMany(drugs);
+    const created = await Drug.insertMany(drugs.map(d => ({ ...d, status: 'approved', addedVia: 'seed' })));
     console.log(`\nSeeded ${created.length} drugs:`);
     created.forEach(d => console.log(`  ✓ ${d.brandName} (${d.genericName}) — ${d.therapeuticArea}${d.hasREMS ? ' [REMS]' : ''}`));
 
