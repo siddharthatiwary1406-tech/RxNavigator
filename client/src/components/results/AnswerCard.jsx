@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   ListOrdered, Building2, ShieldAlert, ClipboardList, FileText,
-  AlertTriangle, AlertCircle, Download, ExternalLink, Clock, Wrench
+  AlertCircle, Download, ExternalLink, Clock, Wrench, TriangleAlert
 } from 'lucide-react';
 import PrescribingSteps from './PrescribingSteps';
 import PharmacyList from './PharmacyList';
@@ -12,11 +12,12 @@ import ConfidenceScore from './ConfidenceScore';
 import FeedbackButtons from '../common/FeedbackButtons';
 
 const TABS = [
-  { id: 'steps',     label: 'Steps',        icon: ListOrdered },
-  { id: 'pharmacies',label: 'Pharmacies',   icon: Building2 },
-  { id: 'rems',      label: 'REMS',         icon: ShieldAlert },
-  { id: 'priorauth', label: 'Prior Auth',   icon: ClipboardList },
+  { id: 'steps',     label: 'Steps',           icon: ListOrdered },
+  { id: 'pharmacies',label: 'Pharmacies',      icon: Building2 },
+  { id: 'rems',      label: 'REMS',            icon: ShieldAlert },
+  { id: 'priorauth', label: 'Prior Auth',      icon: ClipboardList },
   { id: 'forms',     label: 'Forms & Sources', icon: FileText },
+  { id: 'warnings',  label: 'Warnings',        icon: TriangleAlert },
 ];
 
 function DrugStatusBadge({ status }) {
@@ -75,24 +76,13 @@ export default function AnswerCard({ result, queryId }) {
         </div>
       )}
 
-      {/* Important warnings */}
-      {importantWarnings && importantWarnings.length > 0 && (
-        <div className="bg-red-50 border-b border-red-200 px-5 py-3 space-y-2">
-          {importantWarnings.map((warning, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-red-700 leading-relaxed">{warning}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Tab bar */}
       <div className="border-b border-slate-200 bg-slate-50 overflow-x-auto">
         <nav className="flex min-w-max px-2 pt-2 gap-1">
           {TABS.map(({ id, label, icon: Icon }) => {
             const isActive = activeTab === id;
             const hasREMSDot = id === 'rems' && remsRequired;
+            const hasWarningsDot = id === 'warnings' && importantWarnings?.length > 0;
             return (
               <button
                 key={id}
@@ -103,10 +93,15 @@ export default function AnswerCard({ result, queryId }) {
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className={`w-3.5 h-3.5 ${hasWarningsDot && !isActive ? 'text-red-400' : ''}`} />
                 {label}
                 {hasREMSDot && (
                   <span className="absolute -top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-500" />
+                )}
+                {hasWarningsDot && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded-full leading-none">
+                    {importantWarnings.length}
+                  </span>
                 )}
               </button>
             );
@@ -161,6 +156,25 @@ export default function AnswerCard({ result, queryId }) {
             )}
 
             <SourceCitations sources={sources} lastVerified={lastVerified} />
+          </div>
+        )}
+        {activeTab === 'warnings' && (
+          <div>
+            {importantWarnings && importantWarnings.length > 0 ? (
+              <div className="space-y-3">
+                {importantWarnings.map((warning, i) => (
+                  <div key={i} className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-700 leading-relaxed">{warning}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <TriangleAlert className="w-8 h-8 text-slate-300 mb-2" />
+                <p className="text-sm text-slate-400">No warnings reported for this drug.</p>
+              </div>
+            )}
           </div>
         )}
       </div>
